@@ -1,25 +1,29 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
-	"io"
 	"os"
+	"time"
 
 	"github.com/fastly/compute-sdk-go/fsthttp"
+
+	kvdatastore "github.com/launchdarkly/fastly-go-example/kvdatasore"
+	"github.com/launchdarkly/go-sdk-common/v3/ldcontext"
+	ld "github.com/launchdarkly/go-server-sdk/v7"
+	"github.com/launchdarkly/go-server-sdk/v7/ldcomponents"
 )
 
-//go:embed welcome-to-compute.html
-var welcomePage []byte
+const (
+	LD_SDK_KEY        = "sdk-889edf5b-21a6-448e-b84e-0c08c5d54a5b"
+	LD_CLIENT_SIDE_ID = "675aea6b1b327709c85da941"
+)
 
-// The entry point for your application.
-//
-// Use this function to define your main request handling logic. It could be
-// used to route based on the request properties (such as method or path), send
-// the request to a backend, make completely new requests, and/or generate
-// synthetic responses.
+func isLocal() bool {
+	return os.Getenv("FASTLY_HOSTNAME") == "localhost"
+}
 
 func main() {
 	// Log service version
@@ -33,56 +37,67 @@ func main() {
 			return
 		}
 
-		// If request is to the `/` path...
-		if r.URL.Path == "/" {
-			// Below are some common patterns for Compute services using TinyGo.
-			// Head to https://developer.fastly.com/learning/compute/go/ to discover more.
+		clientSideID := "675aea6b1b327709c85da941"
+		if isLocal() {
+			clientSideID = "local"
+		}
 
-			// Create a new request.
-			// req, err := fsthttp.NewRequest("GET", "https://example.com", nil)
-			// if err != nil {
-			//   // Handle Error
-			// }
+		// Initialize the LaunchDarkly SDK
+		client, err := ld.MakeCustomClient(LD_SDK_KEY, ld.Config{
+			DataSource: ldcomponents.ExternalUpdatesOnly(),
+			DataStore: ldcomponents.PersistentDataStore(
+				kvdatastore.DataStore().
+					ClientSideID(clientSideID).
+					KvStoreName("launchdarkly"),
+			),
+			Events: ldcomponents.NoEvents(),
+		}, 5*time.Second)
+		if err != nil {
+			fmt.Println("Error initializing LaunchDarkly client:", err)
+			w.WriteHeader(fsthttp.StatusInternalServerError)
+			fmt.Fprintf(w, "Error initializing LaunchDarkly client\n")
+			return
+		}
+		fmt.Println(client.Initialized())
 
-			// Add request headers.
-			// req.Header.Set("Custom-Header", "Welcome to Compute!")
-			// req.Header.Set(
-			//   "Another-Custom-Header",
-			//   "Recommended reading: https://developer.fastly.com/learning/compute"
-			// )
+		requestID := os.Getenv("FASTLY_TRACE_ID")
+		if requestID == "" {
+			requestID = "unknown"
+		}
 
-			// Override cache TTL.
-			// req.CacheOptions.TTL = 60
+		requestContext := ldcontext.NewBuilder(requestID).
+			Kind("fastly-request").
+			SetString("fastly_service_version", os.Getenv("FASTLY_SERVICE_VERSION")).
+			SetString("fastly_pop", os.Getenv("FASTLY_POP")).
+			SetString("fastly_region", os.Getenv("FASTLY_REGION")).
+			SetString("fastly_service_id", os.Getenv("FASTLY_SERVICE_ID"))
 
-			// Forward the request to a backend named "TheOrigin".
-			// resp, err := req.Send(ctx, "TheOrigin")
-			// if err != nil {
-			//	 w.WriteHeader(fsthttp.StatusBadGateway)
-			//	 fmt.Fprintln(w, err)
-			//	 return
-			// }
+		ldContext := ldcontext.NewMultiBuilder().Add(ldcontext.New("user-123")).Add(requestContext.Build()).Build()
 
-			// Remove response headers.
-			// resp.Header.Del("Yet-Another-Custom-Header")
-
-			// Copy all headers from the response.
-			// w.Header().Reset(resp.Header.Clone())
-
-			// Log to a Fastly endpoint.
-			// NOTE: You will need to import "github.com/fastly/compute-sdk-go/rtlog"
-			// for this to work
-			// endpoint := rtlog.Open("my_endpoint")
-			// fmt.Fprintln(endpoint, "Hello from the edge!")
-
-			// Send a default synthetic response.
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-			io.Copy(w, io.NopCloser(bytes.NewReader(welcomePage)))
+		animal, reason, err := client.StringVariationDetail("animal", ldContext, "default")
+		if err != nil {
+			fmt.Println("Error getting animal:", err)
+			w.WriteHeader(fsthttp.StatusInternalServerError)
+			fmt.Fprintf(w, "Error getting animal: %s", err)
 			return
 		}
 
-		// Catch all other requests and return a 404.
-		w.WriteHeader(fsthttp.StatusNotFound)
-		fmt.Fprintf(w, "The page you requested could not be found\n")
+		response := Response{
+			Animal:         animal,
+			Context:        ldContext,
+			Reason:         reason,
+			ServiceVersion: os.Getenv("FASTLY_SERVICE_VERSION"),
+		}
+
+		w.WriteHeader(fsthttp.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		encoder := json.NewEncoder(w)
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(response); err != nil {
+			fmt.Println("Error encoding response:", err)
+			w.WriteHeader(fsthttp.StatusInternalServerError)
+			fmt.Fprintf(w, "Error encoding response\n")
+			return
+		}
 	})
 }

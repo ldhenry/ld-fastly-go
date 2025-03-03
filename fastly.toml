@@ -1,13 +1,27 @@
 # This file describes a Fastly Compute package. To learn more visit:
-# https://developer.fastly.com/reference/fastly-toml/
+# https://www.fastly.com/documentation/reference/compute/fastly-toml
 
 authors = ["<oss@fastly.com>"]
 description = "A basic starter kit that demonstrates routing, simple synthetic responses and overriding caching rules."
 language = "go"
 manifest_version = 3
 name = "Default starter for Go"
+service_id = "haeMSTABlYh9eaz4fWbgP7"
+
+[local_server]
+
+[local_server.backends]
+
+[local_server.backends.launchdarkly]
+url = "https://events.launchdarkly.com"
+
+[local_server.kv_stores]
+
+[[local_server.kv_stores.launchdarkly]]
+key = "LD-Env-local"
+file = "./localData.json"
 
 [scripts]
-    env_vars = ["GOARCH=wasm", "GOOS=wasip1"]
-    build = "go build -o bin/main.wasm ."
-    post_init = "go get github.com/fastly/compute-sdk-go@latest"
+build = "go build -o bin/main.wasm ."
+env_vars = ["GOARCH=wasm", "GOOS=wasip1"]
+post_init = "go get github.com/fastly/compute-sdk-go@latest"
