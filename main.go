@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	LD_SDK_KEY        = "sdk-889edf5b-21a6-448e-b84e-0c08c5d54a5b"
-	LD_CLIENT_SIDE_ID = "675aea6b1b327709c85da941"
+	LD_SDK_KEY        = "<YOUR_SDK_KEY>"
+	LD_CLIENT_SIDE_ID = "<YOUR_CLIENT_SIDE_ID>"
 )
 
 func isLocal() bool {
@@ -37,7 +37,7 @@ func main() {
 			return
 		}
 
-		clientSideID := "675aea6b1b327709c85da941"
+		clientSideID := LD_CLIENT_SIDE_ID
 		if isLocal() {
 			clientSideID = "local"
 		}
