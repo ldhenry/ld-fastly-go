@@ -6,7 +6,6 @@ description = "A basic starter kit that demonstrates routing, simple synthetic r
 language = "go"
 manifest_version = 3
 name = "Default starter for Go"
-service_id = "haeMSTABlYh9eaz4fWbgP7"
 
 [local_server]
 
