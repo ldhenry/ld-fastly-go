@@ -51,14 +51,13 @@ func main() {
 					KvStoreName("launchdarkly"),
 			),
 			Events: ldcomponents.NoEvents(),
-		}, 5*time.Second)
+		}, 1*time.Second)
 		if err != nil {
 			fmt.Println("Error initializing LaunchDarkly client:", err)
 			w.WriteHeader(fsthttp.StatusInternalServerError)
 			fmt.Fprintf(w, "Error initializing LaunchDarkly client\n")
 			return
 		}
-		fmt.Println(client.Initialized())
 
 		requestID := os.Getenv("FASTLY_TRACE_ID")
 		if requestID == "" {

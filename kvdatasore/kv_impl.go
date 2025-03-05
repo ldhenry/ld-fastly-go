@@ -2,7 +2,7 @@ package kvdatastore
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 
 	"github.com/fastly/compute-sdk-go/kvstore"
 	"github.com/launchdarkly/go-sdk-common/v3/ldlog"
@@ -39,26 +39,22 @@ func (store *fastlyKVDataStoreImpl) getKV() (*kvstore.Store, error) {
 }
 
 func (store *fastlyKVDataStoreImpl) Close() error {
-	store.loggers.Info("Closing FastlyKVDataStore")
+	store.loggers.Debug("Closing FastlyKVDataStore. This is a no-op.")
 	return nil
 }
 
 func (store *fastlyKVDataStoreImpl) Init(allData []ldstoretypes.SerializedCollection) error {
-	store.loggers.Info("Initializing FastlyKVDataStore")
-	_, err := store.getKV()
-	if err != nil {
-		return err
-	}
-	return nil
+	store.loggers.Debug("Init called. This is not supported for FastlyKVDataStore.")
+	return errors.New("init not supported for FastlyKVDataStore")
 }
 
 func (store *fastlyKVDataStoreImpl) IsInitialized() bool {
-	store.loggers.Info("Checking if FastlyKVDataStore is initialized")
-	_, err := store.getKV()
-	return err == nil
+	store.loggers.Debug("IsInitialized called. This is not supported for FastlyKVDataStore.")
+	return false
 }
+
 func (store *fastlyKVDataStoreImpl) IsStoreAvailable() bool {
-	store.loggers.Info("Checking if FastlyKVDataStore is available")
+	store.loggers.Debug("Checking if FastlyKVDataStore is available")
 	_, err := store.getKV()
 	return err == nil
 }
@@ -88,7 +84,7 @@ func (store *fastlyKVDataStoreImpl) getAllFlagData() (allDataStruct, error) {
 }
 
 func (store *fastlyKVDataStoreImpl) Get(kind ldstoretypes.DataKind, key string) (ldstoretypes.SerializedItemDescriptor, error) {
-	store.loggers.Info("Getting item from FastlyKVDataStore")
+	store.loggers.Debug("Getting item from FastlyKVDataStore")
 
 	allData, err := store.getAllFlagData()
 	if err != nil {
@@ -97,7 +93,7 @@ func (store *fastlyKVDataStoreImpl) Get(kind ldstoretypes.DataKind, key string) 
 
 	flag, ok := allData.Flags[key]
 	if !ok {
-		return ldstoretypes.SerializedItemDescriptor{}, fmt.Errorf("flag not found")
+		return ldstoretypes.SerializedItemDescriptor{}.NotFound(), nil
 	}
 
 	flagBytes, err := json.Marshal(flag)
@@ -111,7 +107,7 @@ func (store *fastlyKVDataStoreImpl) Get(kind ldstoretypes.DataKind, key string) 
 }
 
 func (store *fastlyKVDataStoreImpl) GetAll(kind ldstoretypes.DataKind) ([]ldstoretypes.KeyedSerializedItemDescriptor, error) {
-	store.loggers.Info("Getting all items from FastlyKVDataStore")
+	store.loggers.Debug("Getting all items from FastlyKVDataStore")
 
 	allData, err := store.getAllFlagData()
 	if err != nil {
@@ -140,6 +136,6 @@ func (store *fastlyKVDataStoreImpl) Upsert(
 	key string,
 	newItem ldstoretypes.SerializedItemDescriptor,
 ) (bool, error) {
-	store.loggers.Info("Upserting item to FastlyKVDataStore")
-	return false, nil
+	store.loggers.Debug("Upsert called. This is not supported for FastlyKVDataStore.")
+	return false, errors.New("upsert not supported for FastlyKVDataStore")
 }
